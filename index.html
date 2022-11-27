@@ -7,30 +7,24 @@
   <link rel="stylesheet" type="text/css" href="//unpkg.com/rich-text-editor/dist/rich-text-editor.css"/>
   <script src="//code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
   <script src="//unpkg.com/rich-text-editor/dist/rich-text-editor-bundle.js"></script>
-  <style>
-    body { margin-top: 50px; font-family: sans-serif;}
-    h1 {font-size: 2em; line-height: 2; margin-bottom: 4em;}
-    .answer { border: 1px solid #aaa; padding: 5px; box-sizing: content-box; min-height: 100px; font: 17px "Times New Roman"; }
-    .rich-text-editor img[src^="data:image/svg+xml"] { vertical-align: middle; margin: 4px; padding: 3px 10px; cursor: pointer; border: 1px solid transparent; }
-    .rich-text-editor.rich-text-focused img[src^="data:image/svg+xml"],
-    .rich-text-editor:focus img[src^="data:image/svg+xml"] { background: #EDF9FF; border: 1px solid #E6F2F8; }
-    .rich-text-editor img[src*="data:image/png"] { margin: 4px; }
-    .rich-text-editor:focus img[src*="data:image/png"],
-    .rich-text-editor.rich-text-focused img[src*="data:image/png"] { box-shadow: 0 0 3px 1px rgba(0, 0, 0, .2); }
-    .result { display: none; }
-  </style>
+  <link rel="stylesheet" href="public/local.css">
 </head>
 <body>
 <article>
-  <section>
-    <h1>Example of rich text editor</h1>
-
-    <h2>Answer</h2>
-    <div class="answer" id="answer1"></div>
+  <section id="answer-section">
+    <div class="question">
+      <div class="answer statement"></div>
+      <div class="answer choice"></div>
+      <div class="answer choice"></div>
+      <div class="answer choice"></div>
+      <div class="answer choice"></div>
+    </div>
   </section>
 </article>
+<button onclick="addSection()">Add Section</button>
 <div>Import: <input  type="file" id="input"></div>
 <div><a download="math-demo-answer.html" id="export" href="javascript:void(0)">Export</a></div>
+<div><a download="math-demo-editable.html" id="editableExport" href="javascript:void(0)">Editable</a></div>
 <script>
   window.MathJax = {
     options: {
@@ -47,23 +41,42 @@
 </script>
 <script src="//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" id="MathJax-script"></script>
 <script>
-  const answer = document.querySelector('#answer1')
-  makeRichText(answer, {
-    screenshotSaver: ({data, type}) =>
+  const makeEditorValid = (answerDiv) => {
+    makeRichText(answerDiv, {
+      screenshotSaver: ({data, type}) =>
       new Promise(resolve => {
         const reader = new FileReader()
         reader.onload = evt => resolve(evt.target.result.replace(/^(data:image)(\/[^;]+)(;.*)/,'$1$3'))
         reader.readAsDataURL(new Blob([data], { type }))
       }),
-    baseUrl: 'https://math-demo.abitti.fi',
-    updateMathImg: ($img, latex) => {
-      $img.prop({
-        src: "data:image/svg+xml;base64," + getSvg(latex),
-        alt: latex.replace(/</g, '\\lt ').replace(/>/g, '\\gt ')
-      })
-      $img.closest('[data-js="answer"]').trigger('input')
-    }
-  })
+      baseUrl: 'https://math-demo.abitti.fi',
+      updateMathImg: ($img, latex) => {
+        $img.prop({
+          src: "data:image/svg+xml;base64," + getSvg(latex),
+          alt: latex.replace(/</g, '\\lt ').replace(/>/g, '\\gt ')
+        })
+        $img.closest('[data-js="answer"]').trigger('input')
+      }
+    })
+  }
+
+  const transformAllEditorsInDoc = () => {
+    let answers = Array.from($('.answer'))
+    answers.forEach(answer => {
+      // let answer = document.querySelector('#answer1')
+      // console.log($(answer).html())
+      makeEditorValid(answer);
+    });
+  }
+
+  transformAllEditorsInDoc();
+
+  const addSection = () => {
+    const el = document.createElement('div')
+    el.setAttribute('class', 'answer')
+    document.querySelector('#answer-section').appendChild(el)
+    makeEditorValid(el);
+  }
 
   const getSvg = function(latex) {
     const node = MathJax.tex2svg(latex);
@@ -96,7 +109,15 @@
   }
 
   const reader = new FileReader()
-  reader.onload = x => $('.answer').html(x.target.result)
+  reader.onload = x => {
+    $('#answer-section').html(x.target.result);
+    transformAllEditorsInDoc();
+
+    // console.log(x.target.result.split('<br><br>'));
+    // answers.forEach((answer, i) => {
+    //   $(answer).html(x.target.result.split('<br><br>')[i])
+    // })
+  }
 
   document.getElementById("input").addEventListener("change", handleFiles, false)
 
@@ -106,11 +127,26 @@
   }
 
   $('#export').click(e => {
-    const link = 'data:text/html;base64,'+btoa($('.answer').html())
+    let fullData = ``;
+    answers.forEach(answer => {
+      fullData += $(answer).html() + `<br><br>`
+    })
+    console.log(fullData)
+    let link = 'data:text/html;base64,'+btoa(fullData);
+    // link += btoa($(answers[1]).html())
     $(e.target)
       .attr('href', link)
       .attr('download', 'math-demo-answer-' + new Date().toISOString().split('.')[0] + '.html')
   })
+
+  $('#editableExport').click(e => {
+    let data = 'data:text/html;base64,'+btoa($('#answer-section').html())
+
+    $(e.target)
+      .attr('href', data)
+      .attr('download', 'math-demo-answer-' + new Date().toISOString().split('.')[0] + '.html')
+  })
+  // console.log($('.answer'));
 </script>
 </body>
 </html>
